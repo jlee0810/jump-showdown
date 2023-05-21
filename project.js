@@ -71,7 +71,7 @@ export class Project extends Scene {
         this.key_triggered_button("Right", ["d"], () => this.thrust[0] = 1, undefined, () => this.thrust[0] = 0);
         this.key_triggered_button("Up", [" "], () => {
             if (!this.jump) {
-              this.thrust[1] = 1.5;
+              this.thrust[1] = 3;
               this.jump = true;
             }
           }, undefined, () => {
@@ -100,7 +100,7 @@ export class Project extends Scene {
 
 
         let gravity;
-        gravity = 0.02;
+        gravity = 0.07;
         this.thrust[1] -= gravity;
 
         //Collision Detection
@@ -146,8 +146,6 @@ export class Project extends Scene {
 
         this.avatar_transform = Mat4.translation(this.avatar_point[0], this.avatar_point[1], this.avatar_point[2])
             .times(Mat4.scale(this.sphere_radius, this.sphere_radius, this.sphere_radius));
-
-
 
         // TODO: resets position if the ball fell to certain height
         if (this.avatar_point[1] <= -3) {
