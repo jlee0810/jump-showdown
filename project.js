@@ -28,7 +28,7 @@ export class Project extends Scene {
         // *** Materials
         this.materials = {
             plastic: new Material(new defs.Phong_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
+                {ambient: .4, diffusivity: .6, color: hex_color("#F7F5BC")}),
             cube: new Material(new Textured_Phong, {
                 ambient: 0.1,
                 diffusivity: 0.2,
@@ -36,13 +36,19 @@ export class Project extends Scene {
                 texture: new Texture("assets/wall_stones.jpeg"),
                 color: hex_color("#00FF00"), // Pastel green color
                 }),
-            lazer: new Material(new defs.Phong_Shader, {
+            cylinder_base: new Material(new defs.Phong_Shader, {
                 ambient: 0.1,
                 diffusivity: 0.2,
                 specularity: 0.,
                 color: hex_color("#EE4B2B"),
                 }),
-
+            lazer: new Material(new defs.Phong_Shader, {
+                ambient: 0.1,
+                diffusivity: 0.2,
+                specularity: 0.,
+                color: hex_color("#FFF000"),
+                }),
+        
         };
 
         const data_members = {
@@ -83,7 +89,7 @@ export class Project extends Scene {
         this.key_triggered_button("Right", ["d"], () => this.thrust[0] = 1, undefined, () => this.thrust[0] = 0);
         this.key_triggered_button("Up", [" "], () => {
             if (!this.jump) {
-              this.thrust[1] = 2;
+              this.thrust[1] = 2.5;
               this.jump = true;
             }
           }, undefined, () => {
@@ -105,15 +111,26 @@ export class Project extends Scene {
                                  .times(Mat4.rotation(-Math.PI / 2, 1, 0, 0))
                                  .times(Mat4.scale(1.5, 1.5, 5));
     
-        this.shapes.cylinder.draw(context, program_state, cylinder_transform, this.materials.lazer);
+        this.shapes.cylinder.draw(context, program_state, cylinder_transform, this.materials.cylinder_base);
     }
+
+    draw_bat(context, program_state, t) {
+        let orbit = t;
+        const rotation_angle = orbit; // Adjust the rotation angle based on your requirements
+        
+        const bat_transform = Mat4.translation(7, 2, -7)  // Adjust the translation values as needed
+            .times(Mat4.rotation(rotation_angle * 2, 0, 1, 0)) // Apply the rotation around the y-axis
+            .times(Mat4.scale(0.5, 0.5, 30));
+    
+        this.shapes.cylinder.draw(context, program_state, bat_transform, this.materials.lazer);
+    }
+    
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
-
-        // MOVE AVATAR AND CAMERA based on key input
         const dt = program_state.animation_delta_time / 1000;
+        // MOVE AVATAR AND CAMERA based on key input
         const m = this.speed_multiplier * this.meters_per_frame;
         this.avatar_transform.pre_multiply(Mat4.translation(...this.thrust.times(dt*m)));
         this.avatar_point = Mat4.translation(...this.thrust.times(dt*m)).times(this.avatar_point);
@@ -183,7 +200,7 @@ export class Project extends Scene {
 
         // *** Lights: *** Values of vector or point lights.
         const light_position = vec4(8, 10, -6, 1);
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
 
 
         // DRAW OBJECTS
@@ -194,9 +211,12 @@ export class Project extends Scene {
         
         const platform_scale = Mat4.scale(10, 0.4, 10);
 
+        const t = program_state.animation_time / 1000;
+
         this.shapes.sphere.draw(context, program_state, this.avatar_transform, this.materials.plastic);
         this.draw_platform(context, program_state);
         this.draw_cylinder(context, program_state);
+        this.draw_bat(context, program_state, t);
     }
 }
 
