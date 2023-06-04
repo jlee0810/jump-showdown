@@ -30,26 +30,34 @@ export class Project extends Scene {
             plastic: new Material(new defs.Phong_Shader(),
                 {ambient: .4, diffusivity: .6, color: hex_color("#F7F5BC")}),
             cube: new Material(new Textured_Phong, {
-                ambient: 0.1,
+                ambient: 0.3,
                 diffusivity: 0.2,
                 specularity: 0.,
                 texture: new Texture("assets/wall_stones.jpeg"),
-                color: hex_color("#00FF00"), // Pastel green color
+                color: hex_color("#C1E1C1"), // Pastel green color
                 }),
             cylinder_base: new Material(new defs.Phong_Shader, {
-                ambient: 0.1,
+                ambient: 0.3,
                 diffusivity: 0.2,
                 specularity: 0.,
                 color: hex_color("#EE4B2B"),
                 }),
             lazer: new Material(new defs.Phong_Shader, {
-                ambient: 0.1,
+                ambient: 0.3,
                 diffusivity: 0.2,
                 specularity: 0.,
                 color: hex_color("#FFF000"),
                 }),
-        
+
+            cylinder_collison: new Material(new defs.Phong_Shader(), {
+                    ambient: 0,
+                    diffusivity: 0,
+                    specularity: 0,
+                    color: color(0, 0, 0, 0),
+                })
         };
+
+        this.paused = false;
 
         const data_members = {
             thrust: vec3(0, 0, 0), meters_per_frame: 7, speed_multiplier: 1,
@@ -79,6 +87,7 @@ export class Project extends Scene {
             [8, 0, -1], [8, 0, 0], [8, 0, 1], [8, 0, 2], [8, 0, 3], [8, 0, 4], [8, 0, 5], [8, 0, 6], [8, 0, 7], [8, 0, 8],
         );
 
+
     }
 
     make_control_panel() {
@@ -95,6 +104,11 @@ export class Project extends Scene {
           }, undefined, () => {
             this.thrust[1] = 0;
           }, undefined);
+        this.key_triggered_button("Pause", ["p"], () => {
+            this.paused = !this.paused;
+        }
+        );
+
     }
 
     draw_platform(context, program_state) {
@@ -117,14 +131,58 @@ export class Project extends Scene {
     draw_bat(context, program_state, t) {
         let orbit = t;
         const rotation_angle = orbit; // Adjust the rotation angle based on your requirements
-        
-        const bat_transform = Mat4.translation(7, 2, -7)  // Adjust the translation values as needed
+
+        const bat_transform = Mat4.translation(7, 1.5, -7)  // Adjust the translation values as needed
             .times(Mat4.rotation(rotation_angle * 2, 0, 1, 0)) // Apply the rotation around the y-axis
             .times(Mat4.scale(0.5, 0.5, 30));
-    
+
+        const bat_collision_border_transform = Mat4.translation(7, 1.5, -7)  // Adjust the translation values as needed x, y, z
+            .times(Mat4.rotation(orbit * 2, 0, 1, 0)) // Apply the rotation around the y-axis
+            .times(Mat4.scale(0.4, 0.4, 15));
+
+        const twoDim_corners = [
+            vec4(-0.5 * this.BOX_SIZE_units, -0.5 * this.BOX_SIZE_units, -0.5 * this.BOX_SIZE_units, 1), 
+            vec4(0.5 * this.BOX_SIZE_units, -0.5 * this.BOX_SIZE_units, -0.5 * this.BOX_SIZE_units, 1), 
+            vec4(-0.5 * this.BOX_SIZE_units, -0.5 * this.BOX_SIZE_units, 0.5 * this.BOX_SIZE_units, 1), 
+            vec4(0.5 * this.BOX_SIZE_units, -0.5 * this.BOX_SIZE_units, 0.5 * this.BOX_SIZE_units, 1), 
+        ];
+
+        const transformed_corners = twoDim_corners.map(corner => bat_collision_border_transform.times(corner));
+
+
+        // for every edge in the rectangle D = (x2 - x1) * (yp - y1) - (xp - x1) * (y2 - y1)
+        // if all D have the same sign, then the point is inside the rectangle
+        //MAKE SURE ITS COUNTERCLOCKWISE
+
+        let x1 = transformed_corners[0][0], y1 = transformed_corners[0][2], x2 = transformed_corners[1][0], y2 = transformed_corners[1][2], x3 = transformed_corners[2][0], y3 = transformed_corners[2][2], x4 = transformed_corners[3][0], y4 = transformed_corners[3][2];
+        let xp = this.avatar_point[0], yp = this.avatar_point[2];
+
+        let D1 = (x1 - x2) * (yp - y2) - (xp - x2) * (y1 - y2);
+        let D2 = (x3 - x1) * (yp - y1) - (xp - x1) * (y3 - y1);
+        let D3 = (x4 - x3) * (yp - y3) - (xp - x3) * (y4 - y3);
+        let D4 = (x2 - x4) * (yp - y4) - (xp - x4) * (y2 - y4);
+
+
+        if (D1 > 0 && D2 > 0 && D3 > 0 && D4 > 0 || D1 < 0 && D2 < 0 && D3 < 0 && D4 < 0) {
+            if (this.avatar_point[1] <= transformed_corners[0][1] + 0.5) {
+                this.avatar_point = this.starting_pos;
+            }
+        }
+        else {
+            console.log("no collision");
+        }
+
         this.shapes.cylinder.draw(context, program_state, bat_transform, this.materials.lazer);
+
+        this.shapes.cube.draw(context, program_state, bat_collision_border_transform, this.materials.cylinder_collison);
+
+        //Draw spheres at corner for debugging purpose
+        // for (let i = 0; i < transformed_corners.length; i++) {
+        //     const sphere_transform = Mat4.translation(transformed_corners[i][0], transformed_corners[i][1], transformed_corners[i][2])
+        //         .times(Mat4.scale(0.1, 0.1, 0.1));
+        //     this.shapes.sphere.draw(context, program_state, sphere_transform, this.materials.plastic);
+        // }
     }
-    
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
@@ -194,24 +252,18 @@ export class Project extends Scene {
         let eye_point = (this.avatar_point.to3()).plus(vec3(0, 3.6, 6));
         let camera_matrix = Mat4.look_at(eye_point, this.avatar_point.to3(), vec3(0, 1, 0));
         program_state.set_camera(camera_matrix);
-
+        const t = program_state.animation_time / 1000;
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
 
         // *** Lights: *** Values of vector or point lights.
         const light_position = vec4(8, 10, -6, 1);
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
+        var radius = 2 + Math.sin(2 * Math.PI / 8 * t);
+        program_state.lights = [new Light(light_position, hex_color("#b0f542"), 1000)];
 
 
         // DRAW OBJECTS
-        const gray = hex_color("#808080");
-        const darkgray =hex_color("#555555")
-        const red = hex_color("#FF0000");
-        let model_transform = Mat4.identity();
-        
-        const platform_scale = Mat4.scale(10, 0.4, 10);
 
-        const t = program_state.animation_time / 1000;
 
         this.shapes.sphere.draw(context, program_state, this.avatar_transform, this.materials.plastic);
         this.draw_platform(context, program_state);
