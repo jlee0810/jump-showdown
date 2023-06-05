@@ -87,8 +87,27 @@ export class Project extends Scene {
             [8, 0, -1], [8, 0, 0], [8, 0, 1], [8, 0, 2], [8, 0, 3], [8, 0, 4], [8, 0, 5], [8, 0, 6], [8, 0, 7], [8, 0, 8],
         );
 
+    // GAME LOGISTIC VARIABLES
+    this.start_game = false;
+    this.lives = 3;
+    this.first_time = 0;
+    this.second_time = 0;
+    this.third_time = 0;
+    this.time_offset = null;
+    this.time_past = 0;
+    this.time_for_level = 0;
+    this.game_win = false;
+    this.infinite_game = false;
+    this.constant_lights = false;
+    this.constant_light_coords = Vector3.cast(
+        [-3, 1, 3],
+        [1, 1, 5],
+        [-3, 1, 7],
+        [2, 1, 9],
+    );
 
-    }
+    this.hi_score = 0;
+}
 
     make_control_panel() {
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements 
@@ -108,7 +127,14 @@ export class Project extends Scene {
             this.paused = !this.paused;
         }
         );
-
+        this.key_triggered_button("Start game", ["Enter"], () => {
+            const titles = Array.from(document.getElementsByClassName("title-card"));
+            titles.forEach(el => el.style.display = "none");
+            const ui = Array.from(document.getElementsByClassName("interface"));
+            ui.forEach(el => el.style.display = "block");
+            this.start_game = true;
+        }
+        );
     }
 
     draw_platform(context, program_state) {
@@ -166,10 +192,17 @@ export class Project extends Scene {
         if (D1 > 0 && D2 > 0 && D3 > 0 && D4 > 0 || D1 < 0 && D2 < 0 && D3 < 0 && D4 < 0) {
             if (this.avatar_point[1] <= transformed_corners[0][1] + 0.5) {
                 this.avatar_point = this.starting_pos;
+                if (this.lives == 3) {
+                    this.first_time = this.time_past;
+                }
+                else if (this.lives == 2) {
+                    this.second_time = this.time_past;
+                }
+                else {
+                    this.third_time = this.time_past;
+                }
+                this.lives -= 1;
             }
-        }
-        else {
-            console.log("no collision");
         }
 
         this.shapes.cylinder.draw(context, program_state, bat_transform, this.materials.lazer);
@@ -187,7 +220,55 @@ export class Project extends Scene {
     display(context, program_state) {
         // display():  Called once per frame of animation.
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
-        const dt = program_state.animation_delta_time / 1000;
+        if (!this.start_game) {
+            return;
+        }
+
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        if (this.start_game && !this.time_offset) {
+            this.time_offset = Math.floor(t);
+        }
+        if (this.lives == 3) {
+            this.time_past = this.time_for_level + Math.floor(t) - this.time_offset;
+        }
+        else if (this.lives == 2) {
+            this.time_past = this.time_for_level + Math.floor(t) - this.time_offset - this.first_time;
+        }
+        else if (this.lives == 1) {
+            this.time_past = this.time_for_level + Math.floor(t) - this.time_offset - this.first_time - this.second_time;
+        }
+        
+
+
+        // END GAME
+        if (this.lives <= 0) {
+            this.start_game = false;
+            this.time_offset = null;
+
+            this.avatar_point = this.starting_pos;
+            this.avatar_transform = Mat4.translation(this.avatar_point[0], this.avatar_point[1], this.avatar_point[2])
+                .times(Mat4.scale(this.sphere_radius, this.sphere_radius, this.sphere_radius));
+
+            this.hi_score = Math.max(this.first_time, this.second_time, this.third_time
+                );
+
+            document.getElementById("first-score").innerHTML = this.first_time;
+            document.getElementById("second-score").innerHTML = this.second_time;
+            document.getElementById("third-score").innerHTML = this.third_time;
+
+            document.getElementById("hi-score").innerHTML = this.hi_score;
+            document.getElementById("game-over").style.display = "block";
+            
+            const ui = Array.from(document.getElementsByClassName("interface"));
+            ui.forEach(el => el.style.display = "none");
+
+
+            this.lives = 3;
+            this.time_for_level = 0;
+
+            return;
+        }
+        
         // MOVE AVATAR AND CAMERA based on key input
         const m = this.speed_multiplier * this.meters_per_frame;
         this.avatar_transform.pre_multiply(Mat4.translation(...this.thrust.times(dt*m)));
@@ -246,13 +327,22 @@ export class Project extends Scene {
             this.avatar_point = this.starting_pos;
             this.avatar_transform = Mat4.translation(this.avatar_point[0], this.avatar_point[1], this.avatar_point[2])
                 .times(Mat4.scale(this.sphere_radius, this.sphere_radius, this.sphere_radius));
+             if (this.lives == 3) {
+                    this.first_time = this.time_past;
+            }
+            else if (this.lives == 2) {
+                this.second_time = this.time_past;
+            }
+            else {
+                this.third_time = this.time_past;
+            }
+            this.lives -= 1;
         }
 
         // TODO: Tweak eye point as necessary to make the game look good
         let eye_point = (this.avatar_point.to3()).plus(vec3(0, 3.6, 6));
         let camera_matrix = Mat4.look_at(eye_point, this.avatar_point.to3(), vec3(0, 1, 0));
         program_state.set_camera(camera_matrix);
-        const t = program_state.animation_time / 1000;
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
 
@@ -269,6 +359,10 @@ export class Project extends Scene {
         this.draw_platform(context, program_state);
         this.draw_cylinder(context, program_state);
         this.draw_bat(context, program_state, t);
+
+        document.getElementById("lives").innerHTML = this.lives;
+        document.getElementById("timer").innerHTML = this.time_past;
+
     }
 }
 

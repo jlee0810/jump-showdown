@@ -1,0 +1,40 @@
+@font-face{
+    font-family: '8bitwonder';
+    src: url(assets/8bitwonder.TTF);
+}
+
+.title-card {
+    text-align: center;
+    color: rgb(229, 255, 0);
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: '8bitwonder';
+    font-size: 27px;
+}
+
+#game-over {
+    display: none;
+}
+#game-win {
+    display: none;
+}
+.interface {
+    display: none;
+    color: rgb(229, 255, 0);
+    font-family: '8bitwonder';
+    font-size: 18px;
+}
+
+#lives-display {
+    position: absolute;
+    top: 2%;
+    left: 20%;
+}
+
+#timer-display {
+    position: absolute;
+    top: 2%;
+    left: 65%;
+}
